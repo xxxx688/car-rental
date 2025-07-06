@@ -1,0 +1,206 @@
+import datetime
+
+# --- Data Models (Classes) ---
+
+class Car:
+    """Represents a single car in the rental system."""
+    def __init__(self, car_id, make, model, year, daily_rate):
+        self.car_id = car_id
+        self.make = make
+        self.model = model
+        self.year = year
+        self.daily_rate = float(daily_rate)
+        self.is_available = True
+
+    def __str__(self):
+        """String representation for a car."""
+        status = "Available" if self.is_available else "Rented Out"
+        return f"ID: {self.car_id} | {self.year} {self.make} {self.model} | Rate: ${self.daily_rate:.2f}/day | Status: {status}"
+
+    def rent(self):
+        """Marks the car as rented if it is available."""
+        if self.is_available:
+            self.is_available = False
+            return True
+        return False
+
+    def return_car(self):
+        """Marks the car as available."""
+        self.is_available = True
+
+
+class Customer:
+    """Represents a customer of the rental service."""
+    def __init__(self, customer_id, name):
+        self.customer_id = customer_id
+        self.name = name
+        self.rented_cars = {}  # {car_id: rental_date}
+
+    def __str__(self):
+        """String representation for a customer."""
+        return f"ID: {self.customer_id} | Name: {self.name} | Rented Cars: {len(self.rented_cars)}"
+
+    def rent_car(self, car, rental_date):
+        """Adds a car to the customer's rented list."""
+        self.rented_cars[car.car_id] = rental_date
+
+    def return_car(self, car_id):
+        """Removes a car from the customer's rented list."""
+        if car_id in self.rented_cars:
+            del self.rented_cars[car_id]
+
+
+# --- Core System Logic ---
+
+class RentalSystem:
+    """The main system to manage cars, customers, and rentals."""
+    def __init__(self):
+        self.cars = {}      # {car_id: Car_object}
+        self.customers = {} # {customer_id: Customer_object}
+
+    def add_car(self, car):
+        """Adds a new car to the system."""
+        self.cars[car.car_id] = car
+
+    def add_customer(self, customer):
+        """Adds a new customer to the system."""
+        self.customers[customer.customer_id] = customer
+
+    def display_available_cars(self):
+        """Prints a list of all available cars."""
+        print("\n--- Available Cars for Rent ---")
+        available_cars = [car for car in self.cars.values() if car.is_available]
+        if not available_cars:
+            print("Sorry, no cars are available at the moment.")
+            return
+        for car in available_cars:
+            print(car)
+        print("----------------------------\n")
+
+    def display_all_cars(self):
+        """Prints a list of all cars, regardless of status."""
+        print("\n--- Full Fleet Status ---")
+        if not self.cars:
+            print("The fleet is empty.")
+            return
+        for car in self.cars.values():
+            print(car)
+        print("-------------------------\n")
+
+
+    def rent_car(self, customer_id, car_id):
+        """Processes a car rental for a given customer."""
+        customer = self.customers.get(customer_id)
+        car = self.cars.get(car_id)
+
+        if not customer:
+            print(f"Error: Customer with ID {customer_id} not found.")
+            return
+        if not car:
+            print(f"Error: Car with ID {car_id} not found.")
+            return
+
+        if car.rent():
+            rental_date = datetime.date.today()
+            customer.rent_car(car, rental_date)
+            print(f"Success! {customer.name} has rented the {car.year} {car.make} {car.model}.")
+        else:
+            print(f"Sorry, the {car.year} {car.make} {car.model} is already rented out.")
+
+    def return_car(self, customer_id, car_id):
+        """Processes a car return and calculates the cost."""
+        customer = self.customers.get(customer_id)
+        car = self.cars.get(car_id)
+
+        if not customer:
+            print(f"Error: Customer with ID {customer_id} not found.")
+            return
+        if not car:
+            print(f"Error: Car with ID {car_id} not found.")
+            return
+        
+        if car_id not in customer.rented_cars:
+            print(f"Error: {customer.name} does not seem to have this car rented.")
+            return
+
+        # Calculate cost
+        rental_date = customer.rented_cars[car_id]
+        return_date = datetime.date.today()
+        days_rented = (return_date - rental_date).days
+        # Ensure at least 1 day is charged
+        days_rented = max(1, days_rented) 
+        cost = days_rented * car.daily_rate
+
+        # Update system state
+        car.return_car()
+        customer.return_car(car_id)
+        
+        print(f"Success! {customer.name} has returned the {car.year} {car.make} {car.model}.")
+        print(f"Rental duration: {days_rented} day(s).")
+        print(f"Total cost: ${cost:.2f}")
+
+
+# --- User Interface (CLI) ---
+
+def main_menu(system):
+    """Displays the main menu and handles user input."""
+    while True:
+        print("\n===== Car Rental System Menu =====")
+        print("1. Display Available Cars")
+        print("2. Rent a Car")
+        print("3. Return a Car")
+        print("4. Display All Cars in Fleet")
+        print("5. Exit")
+        print("================================")
+        
+        choice = input("Enter your choice (1-5): ")
+
+        if choice == '1':
+            system.display_available_cars()
+        
+        elif choice == '2':
+            try:
+                customer_id = int(input("Enter your Customer ID: "))
+                system.display_available_cars()
+                car_id = int(input("Enter the ID of the car you want to rent: "))
+                system.rent_car(customer_id, car_id)
+            except ValueError:
+                print("Invalid input. Please enter a numeric ID.")
+
+        elif choice == '3':
+            try:
+                customer_id = int(input("Enter your Customer ID: "))
+                car_id = int(input("Enter the ID of the car you are returning: "))
+                system.return_car(customer_id, car_id)
+            except ValueError:
+                print("Invalid input. Please enter a numeric ID.")
+        
+        elif choice == '4':
+            system.display_all_cars()
+
+        elif choice == '5':
+            print("Thank you for using the Car Rental System. Goodbye!")
+            break
+        
+        else:
+            print("Invalid choice. Please enter a number between 1 and 5.")
+
+
+if __name__ == "__main__":
+    # Create the main system object
+    rental_system = RentalSystem()
+    
+    # --- Pre-populate the system with some data (for demonstration) ---
+    
+    # Add cars
+    rental_system.add_car(Car(car_id=1, make="Toyota", model="Camry", year=2022, daily_rate=55.00))
+    rental_system.add_car(Car(car_id=2, make="Honda", model="CR-V", year=2023, daily_rate=65.00))
+    rental_system.add_car(Car(car_id=3, make="Ford", model="Mustang", year=2021, daily_rate=80.50))
+    rental_system.add_car(Car(car_id=4, make="Tesla", model="Model 3", year=2023, daily_rate=120.00))
+    
+    # Add customers
+    rental_system.add_customer(Customer(customer_id=101, name="Alice Johnson"))
+    rental_system.add_customer(Customer(customer_id=102, name="Bob Williams"))
+    
+    # Start the application
+    main_menu(rental_system)
